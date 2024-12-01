@@ -47,3 +47,6 @@ cmd/*/*
 
 # Orbiton include.txt file
 include.txt
+
+# The main executable
+main
