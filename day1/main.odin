@@ -5,7 +5,6 @@ import "core:os"
 import "core:strings"
 import "core:strconv"
 import "core:slice"
-import "core:sort"
 import "core:math"
 
 main :: proc() {
