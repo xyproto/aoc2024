@@ -1,0 +1,7 @@
+numbers separated by spaces, one "report" per line
+
+reports (a line) is "safe" if:
+* all numbers are increasing
+* all numbers are decreasting
+* the min diff between two numbers is 1
+* the max diff between two numbers is 3
