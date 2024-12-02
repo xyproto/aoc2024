@@ -1,11 +1,11 @@
 package main
 
 import "core:fmt"
-import "core:os"
-import "core:strings"
-import "core:strconv"
-import "core:slice"
 import "core:math"
+import "core:os"
+import "core:slice"
+import "core:strconv"
+import "core:strings"
 
 main :: proc() {
 	data, ok := os.read_entire_file("input", context.allocator)
@@ -30,7 +30,7 @@ main :: proc() {
 			//fmt.println(" safe")
 		} else {
 			// The pretty inefficient, but functional, "Problem Dampener"
-			for i in 0..<len(numbersInLine) {
+			for i in 0 ..< len(numbersInLine) {
 				xs := make([dynamic]int, len(numbersInLine), len(numbersInLine))
 				copy(xs[:], numbersInLine[:])
 				ordered_remove(&xs, i)
@@ -51,7 +51,7 @@ safe :: proc(numbers: [dynamic]int) -> bool {
 	prevx := 0
 	increasing := true
 	foundDirection := false
-	for i in 0..<len(numbers) {
+	for i in 0 ..< len(numbers) {
 		x := numbers[i]
 
 		diff := x - prevx
@@ -72,10 +72,10 @@ safe :: proc(numbers: [dynamic]int) -> bool {
 		}
 
 		if increasing && diff < 0 {
-		     return false // unsafe line
+			return false // unsafe line
 		} else if !increasing && diff > 0 {
-		     return false // unsafe line
-        }
+			return false // unsafe line
+		}
 
 		if math.abs(diff) < 1 || math.abs(diff) > 3 {
 			return false // unsafe line

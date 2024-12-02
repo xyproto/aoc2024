@@ -1,11 +1,11 @@
 package main
 
 import "core:fmt"
-import "core:os"
-import "core:strings"
-import "core:strconv"
-import "core:slice"
 import "core:math"
+import "core:os"
+import "core:slice"
+import "core:strconv"
+import "core:strings"
 
 main :: proc() {
 	data, ok := os.read_entire_file("input", context.allocator)
@@ -39,7 +39,7 @@ main :: proc() {
 	d: [dynamic]int
 	defer delete(d)
 
-	for i in 0..<shortest {
+	for i in 0 ..< shortest {
 		append(&d, abs(a[i] - b[i]))
 	}
 
