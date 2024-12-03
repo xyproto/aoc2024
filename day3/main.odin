@@ -21,56 +21,40 @@ main :: proc() {
 	collector: [dynamic]rune
 	defer delete(collector)
 
-	//runeCounter := 0
+	sum: u128
 
-	sum := 0
-
-	for r in fileAsString {
-		if valid_rune(r) {
-
-			// if we got an 'm', abandon all letters before this
-			if r == 'm' {
-				clear(&collector)
-				append(&collector, r)
-			} else {
-				append(&collector, r) // normal letter collection
-			}
-
-			// if we got an ")" check if we have a valid expression
-			if r == ')' {
-				if len(collector) > 6 {
-					sum += check_so_far(&collector)
-				}
-				clear(&collector)
-				//fmt.println("cleared")
-			}
-
-			//} else {
-			//fmt.printfln("%v is invalid, ignored", r)
-
-			// check what we've got so far
-			//check_so_far(&collector)
-
-			// clear the rune collector
-			//clear(&collector)
-			//fmt.println("cleared")
+	for line in strings.split(fileAsString, "mul(") {
+		fmt.printf("line: %s: ", line)
+		if !strings.contains(line, ")") {
+			fmt.println("invalid, must contain at least one )")
+			continue
 		}
-
-		//runeCounter += 1
-		//if runeCounter > 200 {
-		//break
-		//}
-	}
-
-	if len(collector) > 6 {
-		sum += check_so_far(&collector)
+		s := strings.split(line, ")")[0]
+		if len(s) < 3 {
+			fmt.println("invalid, too short")
+			continue
+		}
+		if strings.count(s, ",") != 1 {
+			fmt.println("invalid, expression contain only one ,")
+		}
+		result := multiply_if_possible(s)
+		if result == 0 {
+			fmt.println("result was zero")
+			continue
+		}
+		fmt.printfln("OK! Got %d", result)
+		sum += u128(result)
 	}
 
 	fmt.printfln("got sum: %d", sum)
 }
 
-check_so_far :: proc(collector: ^[dynamic]rune) -> int {
-	s := collector_to_string(collector^)
+multiply_if_possible :: proc(s: string) -> u128 {
+	for r in s {
+		if !valid_rune(r) {
+			return 0 // contains an invalid rune
+		}
+	}
 	a, b, valid := get_numbers(s)
 	if valid {
 		//fmt.printfln("%s is valid, and contains %d and %d", s, a, b)
@@ -99,33 +83,19 @@ valid_rune :: proc(r: rune) -> bool {
 	return false
 }
 
-get_numbers :: proc(s: string) -> (int, int, bool) {
-	promising :=
-		strings.contains(s, "mul(") && strings.ends_with(s, ")") && strings.count(s, ",") == 1
-	if !promising {
-		//fmt.printfln("not promising: %s", s)
-		fmt.printfln("GOTCHA does not contain the right ingredients: %s", s)
-		return -1, -1, false
-	}
-	promising = strings.index(s, "mul(") < strings.index(s, ",") && strings.index(s, ",") < strings.index(s, ")")
-	if !promising {
-		fmt.printfln("GOTCHA wrong order: %s", s)
-		return -1, -1, false
-	}
-	if strings.contains(s, "(,") || strings.contains(s, ",)") { 	// missing numbers
-		fmt.printfln("GOTCHA missing numbers: %s", s)
-		return -1, -1, false
-	}
-	expression := s
-	if strings.index(s, "mul(") != 0 {
-		i := strings.index(s, "mul(")
-		expression = strings.cut(s, i)
-	}
+get_numbers :: proc(s: string) -> (u128, u128, bool) {
 	// has the right structure, just need to extract the numbers
-	first, _, last := strings.partition(expression, ",")
-	_, _, firstNumber := strings.partition(first, "(")
-	secondNumber := strings.trim_right(last, ")")
-	a := strconv.atoi(firstNumber)
-	b := strconv.atoi(secondNumber)
+	first, _, second := strings.partition(s, ",")
+	if len(first) == 0 || len(first) > 3 {
+		return 0, 0, false
+	}
+	if len(second) == 0 || len(second) > 3 {
+		return 0, 0, false
+	}
+	a, ok1 := strconv.parse_u128_maybe_prefixed(first)
+	b, ok2 := strconv.parse_u128_maybe_prefixed(second)
+	if !ok1 || !ok2 {
+		return a, b, false
+	}
 	return a, b, true
 }
