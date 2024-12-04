@@ -18,9 +18,6 @@ main :: proc() {
 
 	safecounter := 0
 
-	collector: [dynamic]rune
-	defer delete(collector)
-
 	sum: u128
 
 	for line in strings.split(fileAsString, "mul(") {
@@ -63,14 +60,6 @@ multiply_if_possible :: proc(s: string) -> u128 {
 		fmt.printfln("%s is invalid, so far", s)
 	}
 	return 0
-}
-
-collector_to_string :: proc(collector: [dynamic]rune) -> string {
-	b := strings.builder_make()
-	for r in collector {
-		strings.write_rune(&b, r)
-	}
-	return strings.to_string(b)
 }
 
 valid_rune :: proc(r: rune) -> bool {
