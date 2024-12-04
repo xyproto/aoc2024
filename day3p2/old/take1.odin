@@ -7,7 +7,7 @@ import "core:strconv"
 
 valid_mul_byte :: proc(b: u8) -> bool {
 	switch b {
-	case '0'..='9', 'm', 'u', 'l', '(', ')', ',':
+	case '0' .. ='9', 'm', 'u', 'l', '(', ')', ',':
 		return true
 	}
 	return false
@@ -15,7 +15,7 @@ valid_mul_byte :: proc(b: u8) -> bool {
 
 valid_mul_do_dont_byte :: proc(b: u8) -> bool {
 	switch b {
-	case '0'..='9', 'm', 'u', 'l', '(', ')', ',', 'd', 'o', 'n', 't', '\'':
+	case '0' ..= '9', 'm', 'u', 'l', '(', ')', ',', 'd', 'o', 'n', 't', '\'':
 		return true
 	}
 	return false
@@ -105,102 +105,67 @@ main :: proc() {
 	}
 
 	sum: u128
+	enabled := true
 	line_counter: u128
 
-	digit_a_builder: [dynamic]u8
-	defer delete(digit_a_builder)
+	file_as_bytes := only_keep(file_as_bytes_raw, valid_mul_do_dont_byte)
+	//file_as_bytes := replace_invalid_with(file_as_bytes_raw, valid_mul_do_dont_byte, 'x')
 
-	digit_b_builder: [dynamic]u8
-	defer delete(digit_b_builder)
+	for byte_line, line_index in bytes.split(file_as_bytes, []u8{'m', 'u', 'l', '('}) {
+		s_bytes, rightp, tail_bytes := bytes.partition(byte_line, []u8{')'})
 
-	mightbemul := 0
-	mightbedo := 0
-	mightbedont := 0
-
-	enabled := true
-
-	for b in file_as_bytes_raw {
-		switch b {
-			case 'd':
-				mightbedo = 1
-				mightbedont = 1
-			case 'o':
-				if mightbedo == 1 {
-					mightbedo = 2
-				}
-				if mightbedont == 1 {
-					mightbedont = 2
-				}
-			case 'n':
-				mightbemul = 0
-				mightbedo = 0
-				if mightbedont == 2 {
-					mightbedont = 3
-				}
-			case '\'':
-				if mightbedont == 3 {
-					mightbedont = 4
-				}
-			case 't':
-				mightbemul = 0
-				mightbedo = 0
-				if mightbedont == 4 {
-					mightbedont = 5
-				}
-			case 'm':
-				mightbemul = 1
-			case 'u':
-				if mightbemul == 1 {
-					mightbemul = 2
-				}
-			case 'l':
-				if mightbemul == 2 {
-					mightbemul = 3
-				}
-			case '0'..='9':
-				if mightbemul == 4 {
-					append(&digit_a_builder, b)
-					if len(digit_a_builder) > 3 {
-						mightbemul = 0
-					}
-				} else if mightbemul == 6 {
-					append(&digit_b_builder, b)
-					if len(digit_b_builder) > 3 {
-						mightbemul = 0
-					}
-				}
-			case ',':
-				if mightbemul == 4 {
-					mightbemul = 5
-				}
-			case '(':
-				if mightbemul == 3 {
-					mightbemul = 4
-				}
-				if mightbedo == 2 {
-					mightbedo = 3
-				}
-				if mightbedont == 5 {
-					mightbedont = 6
-				}
-			case ')':
-				if mightbedo == 3 {
-					fmt.println("ON")
-					enabled = true
-				} else if mightbedont == 6 {
-					fmt.println("OFF")
-					enabled = false
-				} else if mightbemul == 6 {
-					fmt.printfln("%s x %s", digit_a_builder, digit_b_builder)
-					// DO STUFF HERE
-				}
-				fallthrough // reset state
-		    case: // default
-		   	mightbemul = 0
-		   	mightbedo = 0
-		   	mightbedont = 0
-		   	clear(&digit_a_builder)
-		   	clear(&digit_b_builder)
+		if len(rightp) == 0 || len(rightp) > 0 && rightp[0] != ')' { 	// if the line contains no ) after mul(, then this line does not contain mul(...) nor do() nor don't()
+			continue
 		}
+
+		pre_enabled := enabled
+
+		// not efficient, but hey
+		if len(s_bytes) > 0 {
+			for i in 0 ..< len(s_bytes) {
+				if bytes.has_prefix(s_bytes[i:], []u8{'d', 'o', '(', ')'}) {
+					enabled = true
+				} else if bytes.has_prefix(s_bytes[i:], []u8{'d', 'o', 'n', '\'', 't', '(', ')'}) {
+					enabled = false
+				}
+			}
+		}
+
+		result: u128
+		ok: bool
+
+		if enabled && len(s_bytes) >= 3 {
+			result, ok = multiply_numbers_if_possible(s_bytes)
+			if ok {
+				sum += result
+			}
+		}
+
+		if len(tail_bytes) > 0 {
+			// not efficient, but hey
+			for i in 0 ..< len(tail_bytes) {
+				if bytes.has_prefix(tail_bytes[i:], []u8{'d', 'o', '(', ')'}) {
+					enabled = true
+				} else if bytes.has_prefix(
+					tail_bytes[i:],
+					[]u8{'d', 'o', 'n', '\'', 't', '(', ')'},
+				) {
+					enabled = false
+				}
+			}
+		}
+
+		fmt.printfln(
+			"index %d: %s, got: %s, result: %d, tail: %s, enabled: %v => %v",
+			line_index,
+			byte_line,
+			s_bytes,
+			result,
+			tail_bytes,
+			pre_enabled,
+			enabled,
+		)
 	}
+
+	fmt.printfln("got sum: %d", sum)
 }
