@@ -1,119 +1,163 @@
 package main
 
+import "core:bytes"
 import "core:fmt"
-import "core:math"
 import "core:os"
-import "core:slice"
 import "core:strconv"
-import "core:strings"
 
-main :: proc() {
-	data, ok := os.read_entire_file("input", context.allocator)
-	if !ok {
-		fmt.println("could not read the input file")
-		return
-	}
-	defer delete(data, context.allocator)
-	fileAsString := string(data)
-
-	safecounter := 0
-
-	collector: [dynamic]rune
-	defer delete(collector)
-
-	sum: u128
-
-	enabled := true
-
-	for line in strings.split(fileAsString, "mul(") {
-		fmt.printf("line: %s: ", line)
-
-		if !strings.contains(line, ")") { // neither mul( nor do() nor don't()
-			fmt.println("invalid, must contain at least one )")
-			continue
-		}
-
-		s, _, tail := strings.partition(line, ")")
-
-		if len(s) >= 3 { // at least a digit, a comma and a digit
-			fmt.printf("mul(%s) == ", s)
-			if strings.count(s, ",") != 1 {
-				fmt.println("invalid, expression contain only one ,")
-			}
-			result := multiply_if_possible(s)
-			if result == 0 {
-				fmt.println("result was zero")
-				//continue
-			}
-			fmt.printfln("%d, enabled=%v", result, enabled)
-
-			if enabled {
-				sum += u128(result)
-			}
-		}
-
-		for i in 0 ..< len(tail) {
-			if strings.has_prefix(tail[i:], "do()") {
-				enabled = true
-			} else if strings.has_prefix(tail[i:], "don't()") {
-				enabled = false
-			}
-		}
-
-		fmt.printfln("tail: %s, enabled=%v", tail, enabled)
-
-	}
-
-	fmt.printfln("got sum: %d", sum)
-}
-
-multiply_if_possible :: proc(s: string) -> u128 {
-	for r in s {
-		if !valid_rune(r) {
-			return 0 // contains an invalid rune
-		}
-	}
-	a, b, valid := get_numbers(s)
-	if valid {
-		//fmt.printfln("%s is valid, and contains %d and %d", s, a, b)
-		return a * b
-	} else {
-		fmt.printfln("%s is invalid, so far", s)
-	}
-	return 0
-}
-
-collector_to_string :: proc(collector: [dynamic]rune) -> string {
-	b := strings.builder_make()
-	for r in collector {
-		strings.write_rune(&b, r)
-	}
-	return strings.to_string(b)
-}
-
-valid_rune :: proc(r: rune) -> bool {
-	switch r {
-	case '0' ..= '9':
-		return true
-	case 'm', 'u', 'l', '(', ')', ',':
+valid_mul_byte :: proc(b: u8) -> bool {
+	switch b {
+	case '0' ..= '9', 'm', 'u', 'l', '(', ')', ',':
 		return true
 	}
 	return false
 }
 
-get_numbers :: proc(s: string) -> (u128, u128, bool) {
-	// has the right structure, just need to extract the numbers
-	first, _, second := strings.partition(s, ",")
+valid_mul_do_dont_byte :: proc(b: u8) -> bool {
+	switch b {
+	case '0' ..= '9', 'm', 'u', 'l', '(', ')', ',', 'd', 'o', 'n', 't', '\'':
+		return true
+	}
+	return false
+}
+
+// only_keep will return a new byte slice where every byte is valid according to the valid_func function.
+// invalid bytes are skipped.
+only_keep :: proc(xs: []u8, valid_func: proc(_: byte) -> bool) -> []u8 {
+	collector: [dynamic]u8
+	defer delete(collector)
+	for b in xs {
+		if valid_func(b) {
+			append(&collector, b)
+		}
+	}
+	result := make([]u8, len(collector))
+	for r, i in collector {
+		result[i] = r
+	}
+	return result
+}
+
+// replace_invalid_with replaces all bytes in the given byte slice with the given relpacement byte,
+// if the given valid_func considers a bytes to be invalid. If the replacement byte is ' ', then it will be skipped.
+replace_invalid_with :: proc(
+	xs: []u8,
+	valid_func: proc(_: byte) -> bool,
+	replacement: u8,
+) -> []u8 {
+	collector: [dynamic]u8
+	defer delete(collector)
+	for b in xs {
+		if valid_func(b) {
+			append(&collector, b)
+		} else if replacement != ' ' {
+			append(&collector, replacement)
+		}
+	}
+	result := make([]u8, len(collector))
+	for r, i in collector {
+		result[i] = r
+	}
+	return result
+}
+
+extract_numbers :: proc(xs: []u8) -> (u128, u128, bool) {
+	first, _, second := bytes.partition(xs, []u8{','})
 	if len(first) == 0 || len(first) > 3 {
 		return 0, 0, false
 	}
 	if len(second) == 0 || len(second) > 3 {
 		return 0, 0, false
 	}
-	a, ok1 := strconv.parse_u128_maybe_prefixed(first)
-	b, ok2 := strconv.parse_u128_maybe_prefixed(second)
-	if !ok1 || !ok2 {
-		return a, b, false
+	a, ok1 := strconv.parse_u128_maybe_prefixed(string(first))
+	b, ok2 := strconv.parse_u128_maybe_prefixed(string(second))
+	return a, b, ok1 && ok2
+}
+
+// returns the result of the multiplication, and false if something is invalid
+multiply_numbers_if_possible :: proc(xs: []u8) -> (u128, bool) {
+	has_comma := false
+	for b in xs {
+		if !valid_mul_byte(b) {
+			return 0, false // contains an invalid rune, this is rare
+		}
+		if b == ',' {
+			has_comma = true
+		}
 	}
-	return a, b, true
+	if !has_comma { 	// no comma
+		return 0, false
+	}
+	a, b, valid := extract_numbers(xs)
+	if valid {
+		return a * b, true
+	}
+	return 0, false
+}
+
+main :: proc() {
+	filename: string : "input"
+
+	file_as_bytes_raw, ok := os.read_entire_file_from_filename(filename)
+	if !ok {
+		fmt.printfln("error: could not read %s", filename)
+		return
+	}
+
+	sum: u128
+	enabled := true
+	line_counter: u128
+
+	file_as_bytes := only_keep(file_as_bytes_raw, valid_mul_do_dont_byte)
+	//file_as_bytes := replace_invalid_with(file_as_bytes_raw, valid_mul_do_dont_byte, 'x')
+
+	for byte_line, line_index in bytes.split(file_as_bytes, []u8{'m', 'u', 'l', '('}) {
+		s_bytes, rightp, tail_bytes := bytes.partition(byte_line, []u8{')'})
+
+		if len(rightp) == 0 || len(rightp) > 0 && rightp[0] != ')' { 	// if the line contains no ) after mul(, then this line does not contain mul(...) nor do() nor don't()
+			continue
+		}
+
+		if len(s_bytes) < 3 { 	// not enough bytes for at least one digit, a comma and one digit, or "do(" or "don't("
+			continue
+		}
+
+		result: u128
+		ok: bool
+
+		if enabled {
+			result, ok = multiply_numbers_if_possible(s_bytes)
+			if ok {
+				sum += result
+			}
+		}
+
+		if len(tail_bytes) == 0 { 	// no tail that can contain "do()" or "don't()"
+			continue
+		}
+
+		pre_enabled := enabled
+
+		// not efficient, but hey
+		for i in 0 ..< len(tail_bytes) {
+			if bytes.has_prefix(tail_bytes[i:], []u8{'d', 'o', '(', ')'}) {
+				enabled = true
+			} else if bytes.has_prefix(tail_bytes[i:], []u8{'d', 'o', 'n', '\'', 't', '(', ')'}) {
+				enabled = false
+			}
+		}
+
+		fmt.printfln(
+			"index %d: %s, got: %s, result: %d, tail: %s, enabled: %v => %v",
+			line_index,
+			byte_line,
+			s_bytes,
+			result,
+			tail_bytes,
+			pre_enabled,
+			enabled,
+		)
+	}
+
+	fmt.printfln("got sum: %d", sum)
 }
