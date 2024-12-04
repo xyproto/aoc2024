@@ -1,6 +1,5 @@
 package main
 
-import "core:bytes"
 import "core:fmt"
 import "core:os"
 import "core:strconv"
@@ -17,7 +16,6 @@ undynamic :: proc(xs: [dynamic]u8) -> []u8 {
 
 main :: proc() {
 	filename: string : "input"
-
 	file_as_bytes_raw, ok := os.read_entire_file_from_filename(filename)
 	if !ok {
 		fmt.printfln("error: could not read %s", filename)
@@ -149,8 +147,6 @@ main :: proc() {
 					fmt.printfln("%d x %d, enabled: %v", a, b, enabled)
 					sum += a * b
 				}
-				//} else {
-				//fmt.println("encountered ) but had nothing")
 			}
 			fallthrough // reset state
 		case:
