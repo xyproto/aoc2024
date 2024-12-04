@@ -7,7 +7,7 @@ import "core:strconv"
 
 valid_mul_byte :: proc(b: u8) -> bool {
 	switch b {
-	case '0' .. ='9', 'm', 'u', 'l', '(', ')', ',':
+	case '0' ..= '9', 'm', 'u', 'l', '(', ')', ',':
 		return true
 	}
 	return false
