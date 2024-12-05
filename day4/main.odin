@@ -49,7 +49,7 @@ count :: proc(board: ^[][]u8, w: int, h: int, x: int, y: int, word: string) -> i
 	if !ok {
 		return 0
 	}
-	if b != 'X' {
+	if b != word[0] {
 		return 0
 	}
 	counter := 0
@@ -71,13 +71,13 @@ count :: proc(board: ^[][]u8, w: int, h: int, x: int, y: int, word: string) -> i
 
 main :: proc() {
 	filename: string : "input"
-	file_as_bytes_raw, ok := os.read_entire_file_from_filename(filename)
+	file_as_bytes, ok := os.read_entire_file_from_filename(filename)
 	if !ok {
 		fmt.printfln("error: could not read %s", filename)
 		return
 	}
 
-	board := bytes.split(bytes.trim_space(file_as_bytes_raw), []u8{'\n'})
+	board := bytes.split(bytes.trim_space(file_as_bytes), []u8{'\n'})
 
 	height := len(board)
 	width := height > 0 ? len(board[0]) : 0
