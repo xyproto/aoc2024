@@ -3,17 +3,6 @@ package main
 import "core:bytes"
 import "core:fmt"
 import "core:os"
-import "core:strconv"
-
-// undynamic converts a [dynamic]u8 to an []u8 slice
-// There are *most likely* easier ways to do this in Odin.
-undynamic :: proc(xs: [dynamic]u8) -> []u8 {
-	result := make([]u8, len(xs))
-	for r, i in xs {
-		result[i] = r
-	}
-	return result
-}
 
 get :: proc(bytelines: ^[][]u8, w: int, h: int, x: int, y: int) -> (u8, bool) {
 	if x >= 0 && x < w && y >= 0 && y < h {
@@ -22,16 +11,62 @@ get :: proc(bytelines: ^[][]u8, w: int, h: int, x: int, y: int) -> (u8, bool) {
 	return 0, false
 }
 
-count :: proc(board: ^[][]u8, w: int, h: int, x: int, y: int) -> int {
+hasword :: proc(
+	board: ^[][]u8,
+	w: int,
+	h: int,
+	startx: int,
+	starty: int,
+	dx: int,
+	dy: int,
+	word: string,
+) -> bool {
+	x := startx
+	y := starty
+	index := 0
+	lastIndex := len(word) - 1
+	for {
+		b, ok := get(board, w, h, x, y)
+		if !ok {
+			break
+		}
+		if b != word[index] {
+			break
+		}
+		if index == lastIndex {
+			return true // found XMAS!
+		}
+		index += 1 // next letter
+		x += dx // next x position
+		y += dy // next y position
+	}
+	return false
+}
+
+count :: proc(board: ^[][]u8, w: int, h: int, x: int, y: int, word: string) -> int {
 	// Find "XMAS" in all directions, starting from x,y using the get function
-    b, ok := get(board, w, h, x, y)
-    if !ok {
-    	return 0
-    }
+	b, ok := get(board, w, h, x, y)
+	if !ok {
+		return 0
+	}
 	if b != 'X' {
 		return 0
 	}
-	return 1 // TODO: Count in all directions
+	counter := 0
+
+	// count words for all diagonals
+	counter += hasword(board, w, h, x, y, 1, 1, word) ? 1 : 0
+	counter += hasword(board, w, h, x, y, -1, -1, word) ? 1 : 0
+	counter += hasword(board, w, h, x, y, 1, -1, word) ? 1 : 0
+	counter += hasword(board, w, h, x, y, -1, 1, word) ? 1 : 0
+
+	// count words for the horizontal and vertical
+	counter += hasword(board, w, h, x, y, 0, 1, word) ? 1 : 0
+	counter += hasword(board, w, h, x, y, 0, -1, word) ? 1 : 0
+	counter += hasword(board, w, h, x, y, 1, 0, word) ? 1 : 0
+	counter += hasword(board, w, h, x, y, -1, 0, word) ? 1 : 0
+
+	return counter
 }
 
 main :: proc() {
@@ -47,19 +82,17 @@ main :: proc() {
 	height := len(board)
 	width := height > 0 ? len(board[0]) : 0
 
-	//if len(board[height-1]) == 0 {
-		//board = board[:height-1]
-		//height -= 1
-	//}
-
 	fmt.printfln("w x h = %d x %d", width, height)
 
-	//fmt.printfln("%c", get(&board, 0, 0))
+	word: string : "XMAS"
 
-    for y in 0..<height {
-    	for x in 0..<width {
-    		fmt.println(count(&board, width, height, x, y))
-    	}
-    	fmt.println()
-    }
+	counter := 0
+
+	for y in 0 ..< height {
+		for x in 0 ..< width {
+			counter += count(&board, width, height, x, y, word)
+		}
+	}
+
+	fmt.printfln("total count: %d", counter)
 }
